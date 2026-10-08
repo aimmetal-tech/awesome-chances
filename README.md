@@ -34,6 +34,27 @@ pnpm start
 
 BFF 层由 Next.js 实现，通过后端接口调用 `backend/` 服务；核心业务逻辑、Agent 编排和数据访问统一在 `backend/` 实现。
 
-导入别名 `@/*` 指向 `src/*`。默认模板使用 `next/font/google` 加载 Geist 字体，首次构建需要能访问 Google Fonts。
+导入别名 `@/*` 指向 `src/*`。
+
+## 语言与字体
+
+项目默认使用简体中文，页面语言为 `zh-CN`，当前不引入 i18n。
+
+中文字体优先使用本机安装的思源黑体，随后回退到系统字体：
+
+```css
+"Source Han Sans SC", "Source Han Sans CN", "思源黑体",
+"PingFang SC", "Microsoft YaHei", system-ui, sans-serif
+```
+
+全局样式和 Tailwind 的 `font-sans` 共用此字体栈。当前未内置字体文件；设备未安装思源黑体时使用系统字体，不依赖在线字体服务。
 
 参考 [Next.js 官方文档](https://nextjs.org/docs)和 [create-next-app 参数说明](https://nextjs.org/docs/app/api-reference/cli/create-next-app)。
+
+## 参与贡献
+
+请阅读 [贡献指南](./CONTRIBUTING.md)。新功能开发前必须创建或复用对应 Issue；创建 PR 后，必须在 Issue 正文中用 `Related` 附上 PR 链接，并在 PR 描述中用 `Closes #编号` 引用已全部完成的 Issue，或用 `Related #编号` 引用仅关联或部分完成的 Issue。支持通过一个大 Issue 和多个子 Issue 拆分功能。
+
+## 许可证
+
+本项目采用 [MIT 许可证](./LICENSE)。
