@@ -9,7 +9,7 @@
 ## 2. 技术栈与当前状态
 
 - 前端：Next.js、React、TypeScript、App Router、Tailwind CSS、ESLint、pnpm，版本以 package.json / pnpm-lock.yaml 为准。当前仍为基础框架，已采用简体中文及思源黑体优先的本机字体栈；没有此前七栏目演示页面或认证 BFF。
-- 后端：Go 1.25 + Gin 1.12 模块化单体，pgx 接入 PostgreSQL，Argon2id 密码哈希、Cookie 会话；版本以 backend/go.mod 为准。
+- 后端：Go 1.25 + Gin 1.12 模块化单体，GORM + PostgreSQL Driver 接入 PostgreSQL，database/sql 管理连接池（驱动底层 pgx），保留版本 SQL 迁移；Argon2id 密码哈希、Cookie 会话，版本以 backend/go.mod 为准。
 - 已有后端路由聚合、领域/HTTP/数据库模型、示例查询、规则推荐、计划预览、内存反馈、注册/登录/当前用户/退出，以及 PostgreSQL 连接和用户/会话迁移代码。
 - PostgreSQL 连接值待填写，真实数据库尚未联调；数据库关闭时认证返回 503。画像、任务和反馈尚未实现数据库持久化。
 - Agent、MCP、真实 LLM、GitHub 搜索与实时赛事尚未接入；插件入口返回明确的未接入状态。外部能力通过 Provider + Adapter 隔离。

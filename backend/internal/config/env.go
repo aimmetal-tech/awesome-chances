@@ -98,12 +98,17 @@ func Parse(get func(string) string) (model.AppConfig, error) {
 	cfg.Database.Enabled = boolean("DATABASE_ENABLED")
 	cfg.Database.AutoMigrate = boolean("DATABASE_AUTO_MIGRATE")
 	cfg.Database.MaxConns = int32(integer("PG_MAX_CONNS", 10, 1, 100))
-	cfg.Database.MinConns = int32(integer("PG_MIN_CONNS", 1, 0, 100))
+	// database/sql 没有最小池容量；新配置控制最大空闲数，兼容旧 PG_MIN_CONNS。
+	idleKey := "PG_MAX_IDLE_CONNS"
+	if get(idleKey) == "" && get("PG_MIN_CONNS") != "" {
+		idleKey = "PG_MIN_CONNS"
+	}
+	cfg.Database.MaxIdleConns = int32(integer(idleKey, 1, 0, 100))
 	cfg.Database.ConnectTimeout = duration("PG_CONNECT_TIMEOUT", "5s")
 	cfg.Database.QueryTimeout = duration("PG_QUERY_TIMEOUT", "5s")
 	cfg.Database.MaxConnLifetime = duration("PG_MAX_CONN_LIFETIME", "1h")
-	if cfg.Database.MinConns > cfg.Database.MaxConns {
-		return cfg, fmt.Errorf("PG_MIN_CONNS 不能超过 PG_MAX_CONNS")
+	if cfg.Database.MaxIdleConns > cfg.Database.MaxConns {
+		return cfg, fmt.Errorf("%s 不能超过 PG_MAX_CONNS", idleKey)
 	}
 	if cfg.Database.Enabled {
 		cfg.Database.Host = strings.TrimSpace(get("PGHOST"))

@@ -7,13 +7,16 @@ import "time"
 // Nested values are intended for JSONB and need explicit encoding in a future adapter.
 // Records must be mapped to response DTOs, never returned directly from handlers.
 type UserRecord struct {
-	ID           string    `db:"id"`
-	Email        string    `db:"email"`
-	PasswordHash string    `db:"password_hash" json:"-"`
-	DisplayName  string    `db:"display_name"`
-	CreatedAt    time.Time `db:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"`
+	ID           string    `db:"id" gorm:"column:id;primaryKey"`
+	Email        string    `db:"email" gorm:"column:email"`
+	PasswordHash string    `db:"password_hash" gorm:"column:password_hash" json:"-"`
+	DisplayName  string    `db:"display_name" gorm:"column:display_name"`
+	CreatedAt    time.Time `db:"created_at" gorm:"column:created_at;autoCreateTime:false"`
+	UpdatedAt    time.Time `db:"updated_at" gorm:"column:updated_at;autoUpdateTime:false"`
 }
+
+// TableName 显式沿用现有 SQL 迁移表名，避免 GORM 默认创建 user_records。
+func (UserRecord) TableName() string { return "users" }
 
 // One current profile per user. Version supports recommendation traceability.
 type ProfileRecord struct {

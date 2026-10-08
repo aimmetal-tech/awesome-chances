@@ -21,7 +21,7 @@ type DatabaseConfig struct {
 	Password        string `json:"-"`
 	SSLMode         string
 	MaxConns        int32
-	MinConns        int32
+	MaxIdleConns    int32
 	ConnectTimeout  time.Duration
 	QueryTimeout    time.Duration
 	MaxConnLifetime time.Duration

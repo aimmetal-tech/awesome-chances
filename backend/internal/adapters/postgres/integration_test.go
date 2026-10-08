@@ -3,55 +3,66 @@ package postgres
 import (
 	"context"
 	"errors"
+	"net/url"
 	"os"
 	"testing"
 	"time"
 
 	"awesome-chances/backend/internal/model"
 	"awesome-chances/backend/internal/security"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	gormpostgres "gorm.io/driver/postgres"
 )
 
-// Opt-in real database test, using an isolated generated schema in a dedicated test DB.
+// 专用 TEST_DATABASE_URL 才执行；在独立 schema 内测试 GORM 与既有版本迁移。
 func TestPostgresMigrationAndAuthRepository(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
 		t.Skip("set TEST_DATABASE_URL for PostgreSQL integration test")
 	}
+	parsed, err := url.Parse(dsn)
+	if err != nil || (parsed.Scheme != "postgres" && parsed.Scheme != "postgresql") || parsed.Host == "" {
+		t.Fatal("TEST_DATABASE_URL must be a PostgreSQL URL for a dedicated test database")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	base, err := pgxpool.New(ctx, dsn)
+	base, err := openGORM(gormpostgres.Open(dsn))
 	if err != nil {
 		t.Fatal("invalid test database settings")
 	}
-	defer base.Close()
+	basePool, err := base.DB()
+	if err != nil {
+		t.Fatal("cannot open test database pool")
+	}
+	defer basePool.Close()
 	id, err := security.RandomID()
 	if err != nil {
 		t.Fatal(err)
 	}
+	// schema 名仅来自随机十六进制 ID，不包含外部输入。
 	schema := "test_auth_" + id
-	quoted := pgx.Identifier{schema}.Sanitize()
-	if _, err := base.Exec(ctx, "CREATE SCHEMA "+quoted); err != nil {
+	quoted := `"` + schema + `"`
+	if err := base.WithContext(ctx).Exec("CREATE SCHEMA " + quoted).Error; err != nil {
 		t.Fatal("cannot create isolated test schema")
 	}
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if _, err := base.Exec(cleanup, "DROP SCHEMA "+quoted+" CASCADE"); err != nil {
+		if err := base.WithContext(cleanup).Exec("DROP SCHEMA " + quoted + " CASCADE").Error; err != nil {
 			t.Error("test schema cleanup failed")
 		}
 	}()
-	cfg, err := pgxpool.ParseConfig(dsn)
+	query := parsed.Query()
+	query.Set("search_path", schema)
+	parsed.RawQuery = query.Encode()
+	orm, err := openGORM(gormpostgres.Open(parsed.String()))
 	if err != nil {
-		t.Fatal("invalid test connection settings")
+		t.Fatal("cannot open test ORM")
 	}
-	cfg.ConnConfig.RuntimeParams["search_path"] = schema
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	pool, err := orm.DB()
 	if err != nil {
 		t.Fatal("cannot open test connection pool")
 	}
-	db := &Database{pool: pool, settings: model.DatabaseConfig{QueryTimeout: 10 * time.Second}}
+	db := &Database{orm: orm, sqlDB: pool, settings: model.DatabaseConfig{QueryTimeout: 10 * time.Second}}
 	defer db.Close()
 	for i := 0; i < 2; i++ {
 		if err := db.Migrate(ctx); err != nil {
@@ -62,6 +73,9 @@ func TestPostgresMigrationAndAuthRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 	repo := NewAuthRepository(db)
+	if _, err := repo.UserByEmail(ctx, "missing@example.com"); !errors.Is(err, model.ErrUserNotFound) {
+		t.Fatal("missing user not mapped")
+	}
 	hash, err := security.PasswordHash("correct horse battery staple")
 	if err != nil {
 		t.Fatal(err)
@@ -96,5 +110,8 @@ func TestPostgresMigrationAndAuthRepository(t *testing.T) {
 	}
 	if _, err := repo.SessionUser(ctx, session.TokenHash, now); !errors.Is(err, model.ErrUnauthenticated) {
 		t.Fatal("revoked session accepted")
+	}
+	if err := repo.DeleteSession(ctx, session.TokenHash); err != nil {
+		t.Fatal("repeated logout must remain idempotent")
 	}
 }

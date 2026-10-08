@@ -57,7 +57,7 @@ func run(logger *slog.Logger) error {
 		if err != nil {
 			return errors.New("初始化用户认证失败")
 		}
-		logger.Info("database connected", "driver", "pgx", "auth", "enabled")
+		logger.Info("database connected", "orm", "gorm", "dialect", "postgres", "auth", "enabled")
 	} else {
 		logger.Info("database disabled", "auth", "unavailable")
 	}

@@ -1,6 +1,6 @@
 # 第一版 model
 
-统一放置后端数据结构，不耦合 Gin/pgx。UserRecord 和 SessionRecord 已由 PostgreSQL Repository 和用户/会话迁移使用；其他 Record 仍为后续设计。
+统一放置后端数据结构，不依赖 Gin/GORM 类型。UserRecord 和 SessionRecord 提供 GORM 列标签及明确的 TableName，对应现有 users/auth_sessions；其他业务 Record 仍为后续设计，不参与自动建表。
 
 | 文件 | 内容 | 用途 |
 | --- | --- | --- |
@@ -9,6 +9,7 @@
 | `records.go` | UserRecord、ProfileRecord、SkillEvidenceRecord、TaskRecord、RecommendationRecord、FeedbackRecord、CompetitionRecord、ProjectRecord、IssueRecord | 后续 PostgreSQL 存储设计，不直接作为 HTTP 响应 |
 | `auth.go` | RegisterRequest、LoginRequest、UserView、LoginResponse、SessionRecord 与认证错误 | 密码仅在入参中，UserView 永不带哈希，会话记录只保存令牌哈希 |
 | `config.go` | AppConfig、DatabaseConfig、AuthConfig | 后端 .env / 环境变量配置模型，兼容根 .env；凭据不返回 HTTP |
+| `migration.go` | MigrationRecord | schema_migrations 版本及校验和，applied_at 由数据库生成、ORM 只读 |
 | `errors.go` | ErrFeedbackConflict | 临时反馈适配器与业务/HTTP 共用的冲突语义 |
 
 ## 拟定表关系

@@ -39,8 +39,10 @@ type LoginResponse struct {
 }
 
 type SessionRecord struct {
-	TokenHash string    `db:"token_hash" json:"-"`
-	UserID    string    `db:"user_id"`
-	CreatedAt time.Time `db:"created_at"`
-	ExpiresAt time.Time `db:"expires_at"`
+	TokenHash string    `db:"token_hash" gorm:"column:token_hash;primaryKey" json:"-"`
+	UserID    string    `db:"user_id" gorm:"column:user_id"`
+	CreatedAt time.Time `db:"created_at" gorm:"column:created_at;autoCreateTime:false"`
+	ExpiresAt time.Time `db:"expires_at" gorm:"column:expires_at"`
 }
+
+func (SessionRecord) TableName() string { return "auth_sessions" }

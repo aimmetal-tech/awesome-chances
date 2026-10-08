@@ -13,7 +13,7 @@ func TestConfigurationValidationAndCustomPort(t *testing.T) {
 	}
 	for _, test := range []struct{ key, value string }{
 		{"BACKEND_PORT", "0"}, {"BACKEND_PORT", "65536"}, {"BACKEND_PORT", "abc"}, {"DATABASE_ENABLED", "maybe"},
-		{"PG_MIN_CONNS", "99"}, {"PG_QUERY_TIMEOUT", "0s"}, {"AUTH_COOKIE_NAME", "invalid;name"}, {"AUTH_SESSION_TTL", "1s"},
+		{"PG_MIN_CONNS", "99"}, {"PG_MAX_IDLE_CONNS", "99"}, {"PG_MAX_IDLE_CONNS", "-1"}, {"PG_QUERY_TIMEOUT", "0s"}, {"AUTH_COOKIE_NAME", "invalid;name"}, {"AUTH_SESSION_TTL", "1s"},
 		{"AUTH_ALLOWED_ORIGINS", "https://user:pass@example.com"}, {"DATABASE_ENABLED", "true"},
 	} {
 		t.Run(test.key+"/"+test.value, func(t *testing.T) {
@@ -36,5 +36,19 @@ func TestConfigurationValidationAndCustomPort(t *testing.T) {
 	base["PGPORT"] = "wrong-secret-do-not-print"
 	if _, err := Parse(func(k string) string { return base[k] }); err == nil || strings.Contains(err.Error(), "secret-do-not-print") {
 		t.Fatal("missing/sensitive config error")
+	}
+}
+
+func TestIdleConnectionConfigSupportsLegacyAndNewPrecedence(t *testing.T) {
+	settings := map[string]string{"BACKEND_HOST": "127.0.0.1", "BACKEND_PORT": "8080", "PG_MIN_CONNS": "2"}
+	get := func(key string) string { return settings[key] }
+	cfg, err := Parse(get)
+	if err != nil || cfg.Database.MaxIdleConns != 2 {
+		t.Fatal("legacy pool configuration was not retained")
+	}
+	settings["PG_MAX_IDLE_CONNS"] = "0"
+	cfg, err = Parse(get)
+	if err != nil || cfg.Database.MaxIdleConns != 0 {
+		t.Fatal("new idle configuration must override the legacy value, including zero")
 	}
 }

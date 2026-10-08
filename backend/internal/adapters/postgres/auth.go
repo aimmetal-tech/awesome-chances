@@ -6,36 +6,35 @@ import (
 	"time"
 
 	"awesome-chances/backend/internal/model"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"gorm.io/gorm"
 )
 
 type AuthRepository struct{ db *Database }
 
 func NewAuthRepository(db *Database) *AuthRepository { return &AuthRepository{db: db} }
 
-func scanUser(row pgx.Row) (model.UserRecord, error) {
-	var user model.UserRecord
-	err := row.Scan(&user.ID, &user.Email, &user.DisplayName, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
-	return user, err
-}
-
 func (r *AuthRepository) CreateUser(ctx context.Context, user model.UserRecord) (model.UserRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.db.settings.QueryTimeout)
 	defer cancel()
-	created, err := scanUser(r.db.pool.QueryRow(ctx, `INSERT INTO users(id,email,display_name,password_hash,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,email,display_name,password_hash,created_at,updated_at`, user.ID, user.Email, user.DisplayName, user.PasswordHash, user.CreatedAt, user.UpdatedAt))
+	err := r.db.orm.WithContext(ctx).Create(&user).Error
+	// GORM 的 PostgreSQL 驱动底层使用 pgx；只映射邮箱唯一约束，其他冲突保留原错误。
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "users_email_key" {
 		return model.UserRecord{}, model.ErrEmailExists
 	}
-	return created, err
+	if err != nil {
+		return model.UserRecord{}, err
+	}
+	return user, nil
 }
 
 func (r *AuthRepository) UserByEmail(ctx context.Context, email string) (model.UserRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.db.settings.QueryTimeout)
 	defer cancel()
-	user, err := scanUser(r.db.pool.QueryRow(ctx, `SELECT id,email,display_name,password_hash,created_at,updated_at FROM users WHERE email=$1`, email))
-	if errors.Is(err, pgx.ErrNoRows) {
+	var user model.UserRecord
+	err := r.db.orm.WithContext(ctx).Where("email = ?", email).Take(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.UserRecord{}, model.ErrUserNotFound
 	}
 	return user, err
@@ -44,25 +43,24 @@ func (r *AuthRepository) UserByEmail(ctx context.Context, email string) (model.U
 func (r *AuthRepository) CreateSession(ctx context.Context, session model.SessionRecord) error {
 	ctx, cancel := context.WithTimeout(ctx, r.db.settings.QueryTimeout)
 	defer cancel()
-	tx, err := r.db.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM auth_sessions WHERE user_id=$1 AND expires_at<=$2`, session.UserID, session.CreatedAt); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, `INSERT INTO auth_sessions(token_hash,user_id,created_at,expires_at) VALUES($1,$2,$3,$4)`, session.TokenHash, session.UserID, session.CreatedAt, session.ExpiresAt); err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
+	return r.db.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ? AND expires_at <= ?", session.UserID, session.CreatedAt).Delete(&model.SessionRecord{}).Error; err != nil {
+			return err
+		}
+		return tx.Create(&session).Error
+	})
 }
 
 func (r *AuthRepository) SessionUser(ctx context.Context, tokenHash string, now time.Time) (model.UserRecord, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.db.settings.QueryTimeout)
 	defer cancel()
-	user, err := scanUser(r.db.pool.QueryRow(ctx, `SELECT u.id,u.email,u.display_name,u.password_hash,u.created_at,u.updated_at FROM auth_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>$2`, tokenHash, now))
-	if errors.Is(err, pgx.ErrNoRows) {
+	var user model.UserRecord
+	err := r.db.orm.WithContext(ctx).Model(&model.UserRecord{}).
+		Select("users.*").
+		Joins("JOIN auth_sessions ON auth_sessions.user_id = users.id").
+		Where("auth_sessions.token_hash = ? AND auth_sessions.expires_at > ?", tokenHash, now).
+		Take(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.UserRecord{}, model.ErrUnauthenticated
 	}
 	return user, err
@@ -71,6 +69,5 @@ func (r *AuthRepository) SessionUser(ctx context.Context, tokenHash string, now 
 func (r *AuthRepository) DeleteSession(ctx context.Context, tokenHash string) error {
 	ctx, cancel := context.WithTimeout(ctx, r.db.settings.QueryTimeout)
 	defer cancel()
-	_, err := r.db.pool.Exec(ctx, `DELETE FROM auth_sessions WHERE token_hash=$1`, tokenHash)
-	return err
+	return r.db.orm.WithContext(ctx).Where("token_hash = ?", tokenHash).Delete(&model.SessionRecord{}).Error
 }

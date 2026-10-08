@@ -1,6 +1,6 @@
 # Go 后端
 
-Go 1.25 + Gin 模块化单体；pgx 访问 PostgreSQL，密码使用 Argon2id，会话通过 HttpOnly Cookie 传递，数据库仅保存令牌哈希。后端独立提供 API，不托管 Web 页面。
+Go 1.25 + Gin 模块化单体；GORM + PostgreSQL Driver 连接和操作 PostgreSQL，database/sql 管理连接池（驱动底层使用 pgx），密码使用 Argon2id，会话通过 HttpOnly Cookie 传递，数据库仅保存令牌哈希。后端独立提供 API，不托管 Web 页面。
 
 ## 本地运行
 
@@ -27,7 +27,9 @@ go run ./cmd/migrate
 go run ./cmd/api
 ```
 
-也可配置 `DATABASE_AUTO_MIGRATE=true`，由 API 启动时迁移；迁移规则见 [migrations/README.md](migrations/README.md)。启用数据库后连接/迁移失败会停止启动，不使用内存账号替代。
+也可配置 `DATABASE_AUTO_MIGRATE=true`，由 API 启动时执行版本 SQL；该配置不调用 GORM AutoMigrate，不自动推断或改变表结构。迁移规则见 [migrations/README.md](migrations/README.md)。启用数据库后连接/迁移失败会停止启动，不使用内存账号替代。
+
+连接池使用 `PG_MAX_CONNS` 设置最大连接数、`PG_MAX_IDLE_CONNS` 设置最大空闲数。兼容旧 `.env` 的 `PG_MIN_CONNS` 作为最大空闲数回退值，新参数优先；database/sql 不提供 pgxpool 的最小连接数保证。连接/查询超时和连接最大寿命沿用既有配置，原 `.env` 无需覆盖。GORM SQL 日志关闭，避免输出认证数据与凭据。
 
 `DATABASE_ENABLED=false` 时可测试示例查询和推荐，认证返回 503。方向、任务和计划目前为 demo，反馈保存在进程内存；画像/任务/反馈的数据库记录仍为设计。真实 PostgreSQL 尚未联调，AI/GitHub/实时赛事未接入。
 
@@ -40,4 +42,4 @@ go test ./...
 go vet ./...
 ```
 
-普通测试不依赖真实服务；数据库集成测试默认跳过，只在设置专用测试库的 `TEST_DATABASE_URL` 时执行。密钥、环境文件、构建输出和测试报告均不提交。
+普通测试不依赖真实服务；GORM 查询映射、错误转换、会话事务与迁移校验通过 SQL 驱动替身验证。数据库集成测试默认跳过，只在设置专用测试库的 PostgreSQL URL `TEST_DATABASE_URL` 时执行，使用独立临时 schema。密钥、环境文件、构建输出和测试报告均不提交。
