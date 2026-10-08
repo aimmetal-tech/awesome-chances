@@ -1,0 +1,2367 @@
+# 当前 Go 后端接口契约；描述与路由/Handler/model 保持同步。
+# 本文件只提供规范描述，不注册新路由，也不包含数据库凭据。
+# GET 与 HEAD 分别描述；路径参数使用 OpenAPI 的 {id}。
+# 两个未接入接口只声明实际错误响应；工具的 operation-2xx-response 提示属于风格警告。
+openapi: "3.1.0"
+jsonSchemaDialect: "https://spec.openapis.org/oas/3.1/dialect/base"
+info:
+  title: "启航 · 校园 AI 导学平台后端接口"
+  version: "0.1.0"
+  description: >-
+    描述当前 Go + Gin 后端的实际接口，不包含 Next.js /api/* BFF。路径包含完整 /api/v1 前缀，健康检查例外。服务器地址与端口由后端 .env 配置（兼容上层 .env）；
+    相对服务器 URL 不绑定端口，离线导入工具时请选择实际后端地址。当前画像/任务/反馈为演示，认证代码使用 PostgreSQL，AI 和实时 GitHub 尚未接入。
+    读取接口显式支持 GET/HEAD，HEAD 不返回响应体。业务和错误响应为 JSON，均禁止缓存并携带 X-Request-ID。未知路径返回 JSON 404；
+    已注册路径的不支持方法返回 JSON 405 并携带 Allow。请求 JSON 限制为 64 KiB。
+    此文档以 .env.example 默认密码长度和 Cookie 名称为准，修改这两项后需同步对应 Schema/securityScheme；文档不读取 .env，不包含真实密钥。
+servers:
+  - url: "/"
+    description: "当前 Go 服务的根地址；端口取自 .env。离线查看或导入时替换为实际后端地址，不使用 Next.js Web 地址。"
+security: []
+tags:
+  - name: "1 竞赛规划"
+    description: "查询示例竞赛并预览备赛步骤；没有实时赛事信息。"
+  - name: "2 项目导学"
+    description: "查询示例项目并预览实践步骤；没有真实源码分析。"
+  - name: "3 方向导学"
+    description: "预置方向介绍与尚未接入的 AI 对话入口。"
+  - name: "4 开源贡献"
+    description: "示例 Issue 与尚未接入的实时 GitHub 搜索入口。"
+  - name: "5 画像与成长"
+    description: "默认画像、画像校验、规则推荐与内存反馈。"
+  - name: "6 统一学习任务"
+    description: "统一任务列表、详情与计划预览。"
+  - name: "7 系统与初始化"
+    description: "进程存活及 Web 初始化。"
+  - name: "8 用户认证"
+    description: "PostgreSQL 注册登录、身份查询及会话撤销。"
+paths:
+  "/api/v1/competitions":
+    get:
+      tags: ["1 竞赛规划"]
+      summary: "[1.1.1] 查询竞赛列表"
+      description: "分页查询后端示例任务。类型固定为 competition；尚未连接真实外部数据源。"
+      operationId: "competitions"
+      x-route-number: "1.1.1"
+      x-router-group: 1
+      x-handler: "Competitions"
+      x-implementation-status: "demo"
+      parameters:
+        - name: "type"
+          in: "query"
+          required: false
+          description: "本栏目固定返回 competition；传入 type 时必须为该值，否则返回 400。"
+          schema:
+            type: "string"
+            enum: ["competition"]
+        - $ref: "#/components/parameters/Category"
+
+        - $ref: "#/components/parameters/Query"
+
+        - $ref: "#/components/parameters/Page"
+
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskPageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["1 竞赛规划"]
+      summary: "[1.1.1] 查询竞赛列表（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headCompetitions"
+      x-route-number: "1.1.1"
+      x-router-group: 1
+      x-handler: "Competitions"
+      x-implementation-status: "demo"
+      x-get-operation-id: "competitions"
+      parameters:
+        - name: "type"
+          in: "query"
+          required: false
+          description: "本栏目固定返回 competition；传入 type 时必须为该值，否则返回 400。"
+          schema:
+            type: "string"
+            enum: ["competition"]
+        - $ref: "#/components/parameters/Category"
+
+        - $ref: "#/components/parameters/Query"
+
+        - $ref: "#/components/parameters/Page"
+
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "400":
+          $ref: "#/components/responses/HeadBadRequest"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/competitions/{id}":
+    get:
+      tags: ["1 竞赛规划"]
+      summary: "[1.1.2] 查询竞赛详情"
+      description: "按任务 ID 查询 competition 类型任务；ID 不存在或类型不符返回 404。"
+      operationId: "competition"
+      x-route-number: "1.1.2"
+      x-router-group: 1
+      x-handler: "Competition"
+      x-implementation-status: "demo"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["1 竞赛规划"]
+      summary: "[1.1.2] 查询竞赛详情（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headCompetition"
+      x-route-number: "1.1.2"
+      x-router-group: 1
+      x-handler: "Competition"
+      x-implementation-status: "demo"
+      x-get-operation-id: "competition"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "404":
+          $ref: "#/components/responses/HeadNotFound"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/competitions/{id}/plan":
+    post:
+      tags: ["1 竞赛规划"]
+      summary: "[1.2.1] 预览竞赛学习计划"
+      description: "先校验画像，再查找当前类型任务。返回预置步骤、技能缺口和预计天数；不保存计划，不进行生成式 AI 分析，也不生成真实赛事日期。"
+      operationId: "competitionPlan"
+      x-route-number: "1.2.1"
+      x-router-group: 1
+      x-handler: "CompetitionPlan"
+      x-implementation-status: "demo"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/ProfileRequest"
+            examples:
+              "示例":
+                $ref: "#/components/examples/ProfileRequest"
+      responses:
+        "200":
+          description: "预览成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskPlanResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/api/v1/projects":
+    get:
+      tags: ["2 项目导学"]
+      summary: "[2.1.1] 查询项目列表"
+      description: "分页查询后端示例任务。类型固定为 project；尚未连接真实外部数据源。"
+      operationId: "projects"
+      x-route-number: "2.1.1"
+      x-router-group: 2
+      x-handler: "Projects"
+      x-implementation-status: "demo"
+      parameters:
+        - name: "type"
+          in: "query"
+          required: false
+          description: "本栏目固定返回 project；传入 type 时必须为该值，否则返回 400。"
+          schema:
+            type: "string"
+            enum: ["project"]
+        - $ref: "#/components/parameters/Category"
+
+        - $ref: "#/components/parameters/Query"
+
+        - $ref: "#/components/parameters/Page"
+
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskPageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["2 项目导学"]
+      summary: "[2.1.1] 查询项目列表（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headProjects"
+      x-route-number: "2.1.1"
+      x-router-group: 2
+      x-handler: "Projects"
+      x-implementation-status: "demo"
+      x-get-operation-id: "projects"
+      parameters:
+        - name: "type"
+          in: "query"
+          required: false
+          description: "本栏目固定返回 project；传入 type 时必须为该值，否则返回 400。"
+          schema:
+            type: "string"
+            enum: ["project"]
+        - $ref: "#/components/parameters/Category"
+
+        - $ref: "#/components/parameters/Query"
+
+        - $ref: "#/components/parameters/Page"
+
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "400":
+          $ref: "#/components/responses/HeadBadRequest"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/projects/{id}":
+    get:
+      tags: ["2 项目导学"]
+      summary: "[2.1.2] 查询项目详情"
+      description: "按任务 ID 查询 project 类型任务；ID 不存在或类型不符返回 404。"
+      operationId: "project"
+      x-route-number: "2.1.2"
+      x-router-group: 2
+      x-handler: "Project"
+      x-implementation-status: "demo"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["2 项目导学"]
+      summary: "[2.1.2] 查询项目详情（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headProject"
+      x-route-number: "2.1.2"
+      x-router-group: 2
+      x-handler: "Project"
+      x-implementation-status: "demo"
+      x-get-operation-id: "project"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "404":
+          $ref: "#/components/responses/HeadNotFound"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/projects/{id}/guide":
+    post:
+      tags: ["2 项目导学"]
+      summary: "[2.2.1] 预览项目学习计划"
+      description: "先校验画像，再查找当前类型任务。返回预置步骤、技能缺口和预计天数；不保存计划，不进行生成式 AI 分析，也不生成真实赛事日期。"
+      operationId: "projectGuide"
+      x-route-number: "2.2.1"
+      x-router-group: 2
+      x-handler: "ProjectGuide"
+      x-implementation-status: "demo"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/ProfileRequest"
+            examples:
+              "示例":
+                $ref: "#/components/examples/ProfileRequest"
+      responses:
+        "200":
+          description: "预览成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskPlanResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/api/v1/guidance/directions":
+    get:
+      tags: ["3 方向导学"]
+      summary: "[3.1.1] 查询全部学习方向"
+      description: "返回预置方向、岗位工作、技术栈与学习顺序，不调用 LLM。"
+      operationId: "directions"
+      x-route-number: "3.1.1"
+      x-router-group: 3
+      x-handler: "Directions"
+      x-implementation-status: "demo"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/DirectionsResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["3 方向导学"]
+      summary: "[3.1.1] 查询全部学习方向（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headDirections"
+      x-route-number: "3.1.1"
+      x-router-group: 3
+      x-handler: "Directions"
+      x-implementation-status: "demo"
+      x-get-operation-id: "directions"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/guidance/directions/{id}":
+    get:
+      tags: ["3 方向导学"]
+      summary: "[3.1.2] 查询单个学习方向"
+      description: "查找预置方向；不存在时返回 404。"
+      operationId: "direction"
+      x-route-number: "3.1.2"
+      x-router-group: 3
+      x-handler: "Direction"
+      x-implementation-status: "demo"
+      parameters:
+        - $ref: "#/components/parameters/DirectionID"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/DirectionResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["3 方向导学"]
+      summary: "[3.1.2] 查询单个学习方向（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headDirection"
+      x-route-number: "3.1.2"
+      x-router-group: 3
+      x-handler: "Direction"
+      x-implementation-status: "demo"
+      x-get-operation-id: "direction"
+      parameters:
+        - $ref: "#/components/parameters/DirectionID"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "404":
+          $ref: "#/components/responses/HeadNotFound"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/guidance/chat":
+    post:
+      tags: ["3 方向导学"]
+      summary: "[3.2.1] 提交导学对话（尚未接入）"
+      description: "先校验画像和消息；合法请求固定返回 501。GenerationProvider、Agent 和会话记忆尚未接入，没有成功回复 Schema。"
+      operationId: "guidanceChat"
+      x-route-number: "3.2.1"
+      x-router-group: 3
+      x-handler: "GuidanceChat"
+      x-implementation-status: "not-connected"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+            examples:
+              "示例":
+                $ref: "#/components/examples/ChatRequest"
+      responses:
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "501":
+          $ref: "#/components/responses/NotConnected"
+  "/api/v1/open-source/issues":
+    get:
+      tags: ["4 开源贡献"]
+      summary: "[4.1.1] 查询开源 Issue列表"
+      description: "分页查询后端示例任务。类型固定为 issue；尚未连接真实外部数据源。"
+      operationId: "issues"
+      x-route-number: "4.1.1"
+      x-router-group: 4
+      x-handler: "Issues"
+      x-implementation-status: "demo"
+      parameters:
+        - name: "type"
+          in: "query"
+          required: false
+          description: "本栏目固定返回 issue；传入 type 时必须为该值，否则返回 400。"
+          schema:
+            type: "string"
+            enum: ["issue"]
+        - $ref: "#/components/parameters/Category"
+
+        - $ref: "#/components/parameters/Query"
+
+        - $ref: "#/components/parameters/Page"
+
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskPageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["4 开源贡献"]
+      summary: "[4.1.1] 查询开源 Issue列表（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headIssues"
+      x-route-number: "4.1.1"
+      x-router-group: 4
+      x-handler: "Issues"
+      x-implementation-status: "demo"
+      x-get-operation-id: "issues"
+      parameters:
+        - name: "type"
+          in: "query"
+          required: false
+          description: "本栏目固定返回 issue；传入 type 时必须为该值，否则返回 400。"
+          schema:
+            type: "string"
+            enum: ["issue"]
+        - $ref: "#/components/parameters/Category"
+
+        - $ref: "#/components/parameters/Query"
+
+        - $ref: "#/components/parameters/Page"
+
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "400":
+          $ref: "#/components/responses/HeadBadRequest"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/open-source/issues/{id}":
+    get:
+      tags: ["4 开源贡献"]
+      summary: "[4.1.2] 查询开源 Issue详情"
+      description: "按任务 ID 查询 issue 类型任务；ID 不存在或类型不符返回 404。"
+      operationId: "issue"
+      x-route-number: "4.1.2"
+      x-router-group: 4
+      x-handler: "Issue"
+      x-implementation-status: "demo"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["4 开源贡献"]
+      summary: "[4.1.2] 查询开源 Issue详情（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headIssue"
+      x-route-number: "4.1.2"
+      x-router-group: 4
+      x-handler: "Issue"
+      x-implementation-status: "demo"
+      x-get-operation-id: "issue"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "404":
+          $ref: "#/components/responses/HeadNotFound"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/open-source/search":
+    post:
+      tags: ["4 开源贡献"]
+      summary: "[4.2.1] 实时搜索开源 Issue（尚未接入）"
+      description: "先校验画像和搜索词；合法请求固定返回 501。RepositoryProvider 尚未连接 GitHub，没有成功搜索结果 Schema。"
+      operationId: "searchIssues"
+      x-route-number: "4.2.1"
+      x-router-group: 4
+      x-handler: "SearchIssues"
+      x-implementation-status: "not-connected"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/IssueSearchRequest"
+            examples:
+              "示例":
+                $ref: "#/components/examples/IssueSearchRequest"
+      responses:
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "501":
+          $ref: "#/components/responses/NotConnected"
+  "/api/v1/profile":
+    get:
+      tags: ["5 画像与成长"]
+      summary: "[5.1.1] 读取默认演示画像"
+      description: "返回固定示例，不读取当前登录账号或浏览器 localStorage；不是用户画像持久化接口。"
+      operationId: "defaultProfile"
+      x-route-number: "5.1.1"
+      x-router-group: 5
+      x-handler: "DefaultProfile"
+      x-implementation-status: "demo"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["5 画像与成长"]
+      summary: "[5.1.1] 读取默认演示画像（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headDefaultProfile"
+      x-route-number: "5.1.1"
+      x-router-group: 5
+      x-handler: "DefaultProfile"
+      x-implementation-status: "demo"
+      x-get-operation-id: "defaultProfile"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/profile/validate":
+    post:
+      tags: ["5 画像与成长"]
+      summary: "[5.1.2] 校验画像"
+      description: "验证字段、固定技能/兴趣词表与数值范围。成功返回原画像，persisted=false。"
+      operationId: "validateProfile"
+      x-route-number: "5.1.2"
+      x-router-group: 5
+      x-handler: "ValidateProfile"
+      x-implementation-status: "demo"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/ProfileRequest"
+            examples:
+              "示例":
+                $ref: "#/components/examples/ProfileRequest"
+      responses:
+        "200":
+          description: "画像校验通过，未保存。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ProfileValidationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/api/v1/recommendations":
+    post:
+      tags: ["5 画像与成长"]
+      summary: "[5.2.1] 计算规则推荐"
+      description: "根据提交画像对示例任务排序，输出五维分数、关键技能缺口、适配理由和置信度提示。评分不是完成概率；不保存画像或推荐记录。"
+      operationId: "recommendations"
+      x-route-number: "5.2.1"
+      x-router-group: 5
+      x-handler: "Recommendations"
+      x-implementation-status: "demo"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/ProfileRequest"
+            examples:
+              "示例":
+                $ref: "#/components/examples/ProfileRequest"
+      responses:
+        "200":
+          description: "规则推荐计算成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/RecommendationsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/api/v1/feedback":
+    post:
+      tags: ["5 画像与成长"]
+      summary: "[5.3.1] 记录演示行为反馈"
+      description: "首次记录 201，相同 id/内容重试 200，相同 id 不同内容 409。只在进程内暂存，不自动提升能力；未与登录用户绑定。"
+      operationId: "feedback"
+      x-route-number: "5.3.1"
+      x-router-group: 5
+      x-handler: "Feedback"
+      x-implementation-status: "demo"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Feedback"
+            examples:
+              "示例":
+                $ref: "#/components/examples/Feedback"
+      responses:
+        "200":
+          description: "重复提交，created=false。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/FeedbackResponse"
+        "201":
+          description: "首次记录，created=true。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/FeedbackResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/api/v1/tasks":
+    get:
+      tags: ["6 统一学习任务"]
+      summary: "[6.1.1] 查询统一学习任务"
+      description: "按类型、分类和关键词查询资源、项目、竞赛与 Issue 示例，支持分页。"
+      operationId: "tasks"
+      x-route-number: "6.1.1"
+      x-router-group: 6
+      x-handler: "Tasks"
+      x-implementation-status: "demo"
+      parameters:
+        - $ref: "#/components/parameters/TaskType"
+
+        - $ref: "#/components/parameters/Category"
+
+        - $ref: "#/components/parameters/Query"
+
+        - $ref: "#/components/parameters/Page"
+
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskPageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["6 统一学习任务"]
+      summary: "[6.1.1] 查询统一学习任务（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headTasks"
+      x-route-number: "6.1.1"
+      x-router-group: 6
+      x-handler: "Tasks"
+      x-implementation-status: "demo"
+      x-get-operation-id: "tasks"
+      parameters:
+        - $ref: "#/components/parameters/TaskType"
+
+        - $ref: "#/components/parameters/Category"
+
+        - $ref: "#/components/parameters/Query"
+
+        - $ref: "#/components/parameters/Page"
+
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "400":
+          $ref: "#/components/responses/HeadBadRequest"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/tasks/{id}":
+    get:
+      tags: ["6 统一学习任务"]
+      summary: "[6.1.2] 查询任意类型任务详情"
+      description: "按 ID 查找任意类型的现有任务，不限制栏目类型。"
+      operationId: "task"
+      x-route-number: "6.1.2"
+      x-router-group: 6
+      x-handler: "Task"
+      x-implementation-status: "demo"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["6 统一学习任务"]
+      summary: "[6.1.2] 查询任意类型任务详情（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headTask"
+      x-route-number: "6.1.2"
+      x-router-group: 6
+      x-handler: "Task"
+      x-implementation-status: "demo"
+      x-get-operation-id: "task"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "404":
+          $ref: "#/components/responses/HeadNotFound"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/tasks/{id}/plan":
+    post:
+      tags: ["6 统一学习任务"]
+      summary: "[6.2.1] 预览统一任务学习计划"
+      description: "根据画像预览任意类型任务的预置步骤、技能缺口与预计天数，不保存计划。"
+      operationId: "taskPlan"
+      x-route-number: "6.2.1"
+      x-router-group: 6
+      x-handler: "TaskPlan"
+      x-implementation-status: "demo"
+      parameters:
+        - $ref: "#/components/parameters/TaskID"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/ProfileRequest"
+            examples:
+              "示例":
+                $ref: "#/components/examples/ProfileRequest"
+      responses:
+        "200":
+          description: "计划预览成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/TaskPlanResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  "/healthz":
+    get:
+      tags: ["7 系统与初始化"]
+      summary: "[7.1.1] 检查服务存活"
+      description: "只表示进程可响应，不检查数据库、模型或外部服务；响应为独立 status/mode 对象。"
+      operationId: "health"
+      x-route-number: "7.1.1"
+      x-router-group: 7
+      x-handler: "Health"
+      x-implementation-status: "demo"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Health"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["7 系统与初始化"]
+      summary: "[7.1.1] 检查服务存活（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headHealth"
+      x-route-number: "7.1.1"
+      x-router-group: 7
+      x-handler: "Health"
+      x-implementation-status: "demo"
+      x-get-operation-id: "health"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/bootstrap":
+    get:
+      tags: ["7 系统与初始化"]
+      summary: "[7.2.1] 获取 Web 初始化数据"
+      description: "返回默认画像、方向、任务、默认推荐与能力状态。AI/GitHub 为 planned，其他相关数据为 demo。"
+      operationId: "bootstrap"
+      x-route-number: "7.2.1"
+      x-router-group: 7
+      x-handler: "Bootstrap"
+      x-implementation-status: "demo"
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/BootstrapResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    head:
+      tags: ["7 系统与初始化"]
+      summary: "[7.2.1] 获取 Web 初始化数据（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headBootstrap"
+      x-route-number: "7.2.1"
+      x-router-group: 7
+      x-handler: "Bootstrap"
+      x-implementation-status: "demo"
+      x-get-operation-id: "bootstrap"
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+  "/api/v1/auth/register":
+    post:
+      tags: ["8 用户认证"]
+      summary: "[8.1.1] 注册用户"
+      description: "校验并规范化邮箱/昵称，将随机盐 Argon2id 密码哈希写入 PostgreSQL；注册成功不自动登录。数据库关闭时认证中间件先返回 503。"
+      operationId: "register"
+      x-route-number: "8.1.1"
+      x-router-group: 8
+      x-handler: "Register"
+      x-implementation-status: "persistent"
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            examples:
+              "示例":
+                $ref: "#/components/examples/Register"
+      responses:
+        "201":
+          description: "用户创建成功，不设置登录 Cookie。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/AuthUnavailable"
+  "/api/v1/auth/login":
+    post:
+      tags: ["8 用户认证"]
+      summary: "[8.1.2] 登录并创建会话"
+      description: >-
+        验证邮箱/密码。未知邮箱和错误密码统一返回 401；数据库保存随机会话令牌的 SHA-256 哈希。原始令牌只通过 HttpOnly Cookie 传递，JSON 只返回用户与过期时间。
+      operationId: "login"
+      x-route-number: "8.1.2"
+      x-router-group: 8
+      x-handler: "Login"
+      x-implementation-status: "persistent"
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        description: "有效 JSON；单个请求体不超过 64 KiB，不接受未知字段或多个 JSON 对象。"
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              "示例":
+                $ref: "#/components/examples/Login"
+      responses:
+        "200":
+          description: "登录成功，设置会话 Cookie。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/AuthUnavailable"
+  "/api/v1/auth/me":
+    get:
+      tags: ["8 用户认证"]
+      summary: "[8.2.1] 查询当前登录用户"
+      description: "读取有效数据库会话；缺失、过期或撤销返回 401。数据库关闭时先返回 503；GET 和 HEAD 都经过认证限流中间件。"
+      operationId: "currentUser"
+      x-route-number: "8.2.1"
+      x-router-group: 8
+      x-handler: "CurrentUser"
+      x-implementation-status: "persistent"
+      security:
+        - CookieSession: []
+      responses:
+        "200":
+          description: "查询成功。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/AuthUnavailable"
+    head:
+      tags: ["8 用户认证"]
+      summary: "[8.2.1] 查询当前登录用户（仅响应头）"
+      description: "与同路径 GET 执行相同校验和分组中间件；HTTP HEAD 不返回响应体。"
+      operationId: "headCurrentUser"
+      x-route-number: "8.2.1"
+      x-router-group: 8
+      x-handler: "CurrentUser"
+      x-implementation-status: "persistent"
+      x-get-operation-id: "currentUser"
+      security:
+        - CookieSession: []
+      responses:
+        "200":
+          $ref: "#/components/responses/HeadOK"
+        "401":
+          $ref: "#/components/responses/HeadUnauthorized"
+        "429":
+          $ref: "#/components/responses/HeadTooManyRequests"
+        "500":
+          $ref: "#/components/responses/HeadInternalError"
+        "503":
+          $ref: "#/components/responses/HeadAuthUnavailable"
+  "/api/v1/auth/logout":
+    post:
+      tags: ["8 用户认证"]
+      summary: "[8.2.2] 退出当前会话"
+      description: "可无请求体；删除当前数据库会话并清理 Cookie，不影响其他设备。Cookie 缺失或已撤销也返回成功；数据库关闭时返回 503。"
+      operationId: "logout"
+      x-route-number: "8.2.2"
+      x-router-group: 8
+      x-handler: "Logout"
+      x-implementation-status: "persistent"
+      security:
+        - {}
+        - CookieSession: []
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      responses:
+        "200":
+          description: "已退出或当前没有有效会话，loggedOut=true。"
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+            X-Content-Type-Options:
+              $ref: "#/components/headers/NoSniff"
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/LogoutResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/AuthUnavailable"
+components:
+  securitySchemes:
+    CookieSession:
+      type: "apiKey"
+      in: "cookie"
+      name: "ac_session"
+      description: >-
+        PostgreSQL 会话 Cookie。默认名称 ac_session，可由 AUTH_COOKIE_NAME 修改，修改后需同步本定义。
+        登录设置 HttpOnly/SameSite=Lax，HTTPS 部署启用 Secure。Swagger 浏览器页面可能不能手动设置 HttpOnly Cookie，应先在同源登录。
+  parameters:
+    TaskID:
+      name: "id"
+      in: "path"
+      required: true
+      description: "任务唯一 ID。栏目详情/预览只接受该栏目的任务类型。"
+      schema:
+        type: "string"
+        minLength: 1
+    DirectionID:
+      name: "id"
+      in: "path"
+      required: true
+      description: "学习方向 ID；当前预置 backend、frontend、ai、security，其他值返回 404。"
+      schema:
+        type: "string"
+        minLength: 1
+      example: "backend"
+    TaskType:
+      name: "type"
+      in: "query"
+      required: false
+      description: "统一任务列表的类型过滤；省略或空字符串为全部。"
+      schema:
+        type: "string"
+        enum: ["","resource","project","competition","issue"]
+    Category:
+      name: "category"
+      in: "query"
+      required: false
+      description: "兴趣分类过滤；省略或空字符串为全部。"
+      schema:
+        type: "string"
+        enum: ["","backend","frontend","ai","security"]
+    Query:
+      name: "q"
+      in: "query"
+      required: false
+      description: "在标题、说明和标签中搜索，忽略大小写并去首尾空白。"
+      schema:
+        type: "string"
+        maxLength: 200
+    Page:
+      name: "page"
+      in: "query"
+      required: false
+      description: "从 1 开始的页码，超出结果范围返回空数组。"
+      schema:
+        type: "integer"
+        minimum: 1
+        maximum: 1000000
+        default: 1
+    PageSize:
+      name: "pageSize"
+      in: "query"
+      required: false
+      description: "每页结果数。"
+      schema:
+        type: "integer"
+        minimum: 1
+        maximum: 100
+        default: 20
+    Origin:
+      name: "Origin"
+      in: "header"
+      required: false
+      description: "浏览器会发送来源 origin；必须是后端同源或 AUTH_ALLOWED_ORIGINS 允许的值。无 Origin 的命令行请求可通过来源检查。"
+      schema:
+        type: "string"
+  headers:
+    RequestID:
+      description: "本次请求的标识；由后端生成，便于定位日志。"
+      schema:
+        type: "string"
+      example: "0123456789abcdef0123456789abcdef"
+    NoStore:
+      description: "业务及错误响应禁止缓存。"
+      schema:
+        type: "string"
+        enum: ["no-store"]
+    NoSniff:
+      description: "禁止浏览器猜测响应类型。"
+      schema:
+        type: "string"
+        enum: ["nosniff"]
+    RetryAfter:
+      description: "IP 窗口限流时返回 60 秒；哈希并发繁忙等分支可不返回。"
+      schema:
+        type: "string"
+      example: "60"
+    SessionCookie:
+      description: >-
+        设置或清除会话 Cookie。默认名为 ac_session，名称由 AUTH_COOKIE_NAME 配置；
+        Path=/、HttpOnly、SameSite=Lax，Secure 由 AUTH_COOKIE_SECURE 决定；过期时间由 AUTH_SESSION_TTL 决定。
+      schema:
+        type: "string"
+  responses:
+    BadRequest:
+      description: >-
+        请求 JSON 无效、超过 64 KiB、含未知字段，或业务参数未通过校验（invalid_json / invalid_input）。
+        Go 请求体过大目前返回 400，BFF 的 413 不属于本规范。
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: "资源不存在，或任务类型与当前栏目不匹配（not_found）。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: "凭据错误，或会话缺失、过期、撤销（invalid_credentials / unauthenticated）。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: "浏览器 Origin 不允许访问认证入口（invalid_origin）。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: "邮箱已注册，或同一反馈 ID 对应不同事件内容（email_exists / feedback_conflict）。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnsupportedMediaType:
+      description: "注册/登录需使用 application/json（unsupported_media_type）；退出接口允许无请求体。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotConnected:
+      description: "输入已通过校验，但对应 AI 或 GitHub Provider 尚未接入（feature_not_connected）。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    AuthUnavailable:
+      description: "数据库未启用，用户认证暂不可用（auth_unavailable）。数据库启用但连接/迁移失败时服务停止启动。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: "服务暂时无法处理请求（internal_error），不暴露内部细节。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: "认证 IP 请求限流或密码哈希并发繁忙（rate_limited / auth_busy）。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    HeadOK:
+      description: "状态与对应 GET 一致；HTTP HEAD 不返回响应体。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+    HeadBadRequest:
+      description: "查询参数未通过校验；无响应体。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+    HeadNotFound:
+      description: "资源不存在或类型不匹配；无响应体。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+    HeadUnauthorized:
+      description: "会话缺失、过期或撤销；无响应体。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+    HeadAuthUnavailable:
+      description: "数据库未启用；无响应体。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+    HeadInternalError:
+      description: "服务错误；无响应体。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+    HeadTooManyRequests:
+      description: "认证请求触发 IP 限流；无响应体。"
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        X-Content-Type-Options:
+          $ref: "#/components/headers/NoSniff"
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+  schemas:
+    UnitInterval:
+      type: "number"
+      minimum: 0
+      maximum: 1
+      description: "0～1 的估计值；具体含义由所在字段说明。"
+    SkillEstimate:
+      type: "object"
+      description: "单项能力估计；省略 level 或 confidence 时当前 Go 解码得到 0。"
+      additionalProperties: false
+      required: []
+      properties:
+        level:
+          $ref: "#/components/schemas/UnitInterval"
+          description: "能力估计，不能等同于考试成绩。"
+          default: 0
+        confidence:
+          $ref: "#/components/schemas/UnitInterval"
+          description: "估计的可信程度；低置信度会体现在推荐说明中。"
+          default: 0
+    Profile:
+      type: "object"
+      description: "当前演示画像。能力与兴趣独立；技能和兴趣必须包含以下全部固定键，不接受未知键。昵称不得全为空白。"
+      additionalProperties: false
+      required: ["name","dailyMinutes","goal","skills","interests"]
+      properties:
+        name:
+          type: "string"
+          minLength: 1
+          maxLength: 20
+          description: "昵称；按 Unicode 字符计数，不能全为空白。"
+        dailyMinutes:
+          type: "integer"
+          minimum: 15
+          maximum: 180
+          description: "每日可用学习时间，单位为分钟。"
+        goal:
+          type: "string"
+          enum: ["project","opensource","competition"]
+          description: "学习目标：项目实践、开源贡献或竞赛。"
+        skills:
+          type: "object"
+          description: "四项能力估计。"
+          additionalProperties: false
+          required: ["python","web","git","algorithm"]
+          properties:
+            python:
+              $ref: "#/components/schemas/SkillEstimate"
+            web:
+              $ref: "#/components/schemas/SkillEstimate"
+            git:
+              $ref: "#/components/schemas/SkillEstimate"
+            algorithm:
+              $ref: "#/components/schemas/SkillEstimate"
+        interests:
+          type: "object"
+          description: "四项兴趣强度。"
+          additionalProperties: false
+          required: ["backend","frontend","ai","security"]
+          properties:
+            backend:
+              $ref: "#/components/schemas/UnitInterval"
+            frontend:
+              $ref: "#/components/schemas/UnitInterval"
+            ai:
+              $ref: "#/components/schemas/UnitInterval"
+            security:
+              $ref: "#/components/schemas/UnitInterval"
+      examples:
+        - name: "探索者"
+          dailyMinutes: 45
+          goal: "project"
+          skills:
+            python:
+              level: 0.4
+              confidence: 0.25
+            web:
+              level: 0.3
+              confidence: 0.25
+            git:
+              level: 0.25
+              confidence: 0.25
+            algorithm:
+              level: 0.2
+              confidence: 0.25
+          interests:
+            backend: 0.8
+            frontend: 0.65
+            ai: 0.7
+            security: 0.35
+    ProfileRequest:
+      type: "object"
+      description: "提交画像用于校验、推荐或计划预览，不会保存画像。"
+      additionalProperties: false
+      required: ["profile"]
+      properties:
+        profile:
+          $ref: "#/components/schemas/Profile"
+    ChatRequest:
+      type: "object"
+      description: "导学对话输入；当前仅校验，合法输入返回 501。"
+      additionalProperties: false
+      required: ["profile","message"]
+      properties:
+        profile:
+          $ref: "#/components/schemas/Profile"
+        message:
+          type: "string"
+          minLength: 1
+          maxLength: 2000
+          description: "用户消息；不能全为空白，最多 2000 个 Unicode 字符。"
+    IssueSearchRequest:
+      type: "object"
+      description: "实时开源搜索输入；当前仅校验，合法输入返回 501。"
+      additionalProperties: false
+      required: ["profile","query"]
+      properties:
+        profile:
+          $ref: "#/components/schemas/Profile"
+        query:
+          type: "string"
+          minLength: 1
+          maxLength: 200
+          description: "搜索词；不能全为空白，最多 200 个 Unicode 字符。"
+    TaskType:
+      type: "string"
+      enum: ["resource","project","competition","issue"]
+      description: "任务类型：学习资源、练手项目、竞赛或开源 Issue。"
+    InterestCategory:
+      type: "string"
+      enum: ["backend","frontend","ai","security"]
+      description: "兴趣分类：后端、前端、人工智能或网络安全。"
+    Task:
+      type: "object"
+      description: "统一学习任务。当前从后端示例数据加载；不会包含已核实的真实赛事日期、官网或 GitHub 仓库上下文。"
+      additionalProperties: false
+      required: ["id","type","title","description","category","tags","requiredSkills","difficulty","minutes","quality","outcomes","steps","source"]
+      properties:
+        id:
+          type: "string"
+          description: "任务唯一标识。"
+        type:
+          $ref: "#/components/schemas/TaskType"
+        title:
+          type: "string"
+          description: "任务标题。"
+        description:
+          type: "string"
+          description: "任务说明。"
+        category:
+          $ref: "#/components/schemas/InterestCategory"
+        tags:
+          type: "array"
+          items:
+            type: "string"
+          description: "兴趣、技术或检索标签；标签不代表已验证的难度。"
+        requiredSkills:
+          type: "object"
+          description: "任务所需的能力水平，只包含相关技能。"
+          propertyNames:
+            enum: ["python","web","git","algorithm"]
+          additionalProperties:
+            $ref: "#/components/schemas/UnitInterval"
+        difficulty:
+          type: "number"
+          minimum: 0
+          maximum: 1
+          description: "任务难度估计。"
+        minutes:
+          type: "integer"
+          minimum: 1
+          description: "预计实践耗时，单位为分钟。"
+        quality:
+          type: "number"
+          minimum: 0
+          maximum: 1
+          description: "任务质量估计。"
+        outcomes:
+          type: "array"
+          items:
+            type: "string"
+          description: "预计收获，不代表完成后能力已被验证。"
+        steps:
+          type: "array"
+          items:
+            type: "string"
+          description: "预置实践步骤。"
+        source:
+          type: "string"
+          enum: ["demo"]
+          description: "当前数据来源固定为 demo。"
+    Direction:
+      type: "object"
+      description: "预置学习方向介绍，不是实时生成的 AI 回答。"
+      additionalProperties: false
+      required: ["id","label","english","description","work","stack","steps"]
+      properties:
+        id:
+          type: "string"
+          description: "方向标识。"
+        label:
+          type: "string"
+          description: "中文名称。"
+        english:
+          type: "string"
+          description: "英文名称。"
+        description:
+          type: "string"
+          description: "方向简介。"
+        work:
+          type: "string"
+          description: "对应岗位的主要工作内容。"
+        stack:
+          type: "array"
+          items:
+            type: "string"
+          description: "技术栈与前置知识。"
+        steps:
+          type: "array"
+          items:
+            type: "string"
+          description: "建议学习顺序。"
+    Gap:
+      type: "object"
+      description: "任务相关的单项技能缺口。"
+      additionalProperties: false
+      required: ["skill","gap"]
+      properties:
+        skill:
+          type: "string"
+          enum: ["python","web","git","algorithm"]
+          description: "需要补齐的技能。"
+        gap:
+          type: "number"
+          minimum: 0
+          maximum: 1
+          description: "任务要求减去用户能力后的正向缺口。"
+    Scores:
+      type: "object"
+      description: "推荐的五个维度得分，每项范围 0～1。"
+      additionalProperties: false
+      required: ["skill","interest","difficulty","goal","quality"]
+      properties:
+        skill:
+          type: "number"
+          minimum: 0
+          maximum: 1
+          description: "能力适配得分。"
+        interest:
+          type: "number"
+          minimum: 0
+          maximum: 1
+          description: "兴趣适配得分。"
+        difficulty:
+          type: "number"
+          minimum: 0
+          maximum: 1
+          description: "适度挑战得分。"
+        goal:
+          type: "number"
+          minimum: 0
+          maximum: 1
+          description: "目标适配得分。"
+        quality:
+          type: "number"
+          minimum: 0
+          maximum: 1
+          description: "任务质量得分。"
+    Recommendation:
+      type: "object"
+      description: "可解释的规则推荐；总分不是完成概率。"
+      additionalProperties: false
+      required: ["task","score","scores","gaps","reason","readiness","lowConfidence","ruleVersion"]
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        score:
+          type: "integer"
+          minimum: 0
+          maximum: 100
+          description: "最终规则匹配分。"
+        scores:
+          $ref: "#/components/schemas/Scores"
+        gaps:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Gap"
+        reason:
+          type: "string"
+          description: "中文推荐理由。"
+        readiness:
+          type: "string"
+          enum: ["ready","prepare"]
+          description: "ready 表示可开始，prepare 表示建议先补齐关键基础。"
+        lowConfidence:
+          type: "boolean"
+          description: "任务相关能力估计是否存在较低置信度。"
+        ruleVersion:
+          type: "string"
+          description: "评分规则版本，当前为 demo-baseline-v1。"
+    TaskPage:
+      type: "object"
+      description: "分页结果；没有匹配项或页码超出结果范围时 items 为空数组。"
+      additionalProperties: false
+      required: ["items","total","page","pageSize"]
+      properties:
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Task"
+        total:
+          type: "integer"
+          minimum: 0
+          description: "匹配结果总数。"
+        page:
+          type: "integer"
+          minimum: 1
+          maximum: 1000000
+        pageSize:
+          type: "integer"
+          minimum: 1
+          maximum: 100
+    TaskPlan:
+      type: "object"
+      description: "预置步骤的计划预览。天数只按任务耗时估计，不计补齐前置知识的时间，不生成赛事日期，也不保存计划。"
+      additionalProperties: false
+      required: ["taskId","title","steps","minutes","estimatedDays","gaps","readiness","source","generated"]
+      properties:
+        taskId:
+          type: "string"
+          description: "对应任务 ID。"
+        title:
+          type: "string"
+          description: "任务标题。"
+        steps:
+          type: "array"
+          items:
+            type: "string"
+        minutes:
+          type: "integer"
+          minimum: 1
+          description: "任务预计耗时，单位为分钟。"
+        estimatedDays:
+          type: "integer"
+          minimum: 1
+          description: "minutes / dailyMinutes 向上取整。"
+        gaps:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Gap"
+        readiness:
+          type: "string"
+          enum: ["ready","prepare"]
+        source:
+          type: "string"
+          enum: ["demo"]
+        generated:
+          type: "boolean"
+          const: false
+          description: "固定为 false；不是生成式 AI 结果。"
+    ProfileValidation:
+      type: "object"
+      description: "画像校验通过的结果，未进行持久化。"
+      additionalProperties: false
+      required: ["profile","valid","persisted"]
+      properties:
+        profile:
+          $ref: "#/components/schemas/Profile"
+        valid:
+          type: "boolean"
+          const: true
+        persisted:
+          type: "boolean"
+          const: false
+    Feedback:
+      type: "object"
+      description: "演示行为事件。相同 id 和内容重试幂等；不同内容复用 id 返回 409。幂等记录仅在进程内保留，最多 1000 条。"
+      additionalProperties: false
+      required: ["id","taskId","type"]
+      properties:
+        id:
+          type: "string"
+          minLength: 1
+          description: "事件 ID；不能全为空白，最多 80 个 UTF-8 字节。"
+          x-max-utf8-bytes: 80
+        taskId:
+          type: "string"
+          minLength: 1
+          description: "必须对应现有任务。"
+        type:
+          type: "string"
+          enum: ["save","unsave","start","complete","too-hard","suitable"]
+          description: "收藏、取消收藏、开始、完成、过难或难度合适；反馈不会直接提升能力。"
+    FeedbackResult:
+      type: "object"
+      description: "反馈接收结果。"
+      additionalProperties: false
+      required: ["accepted","created","persistence","abilityUpdated"]
+      properties:
+        accepted:
+          type: "boolean"
+          const: true
+        created:
+          type: "boolean"
+          description: "true 为首次记录，false 为相同事件的重复提交。"
+        persistence:
+          type: "string"
+          const: "process-memory"
+          description: "进程内暂存，重启清空。"
+        abilityUpdated:
+          type: "boolean"
+          const: false
+    Bootstrap:
+      type: "object"
+      description: "Web 初始化所需的演示数据和能力状态。"
+      additionalProperties: false
+      required: ["profile","directions","tasks","recommendations","capabilities"]
+      properties:
+        profile:
+          $ref: "#/components/schemas/Profile"
+        directions:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Direction"
+        tasks:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Task"
+        recommendations:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Recommendation"
+        capabilities:
+          type: "object"
+          description: "当前能力接入状态。"
+          additionalProperties: false
+          required: ["recommendation","github","ai","competitions"]
+          properties:
+            recommendation:
+              type: "string"
+              const: "demo"
+            github:
+              type: "string"
+              const: "planned"
+            ai:
+              type: "string"
+              const: "planned"
+            competitions:
+              type: "string"
+              const: "demo"
+    Health:
+      type: "object"
+      description: "进程存活状态；不检查数据库或外部 Provider。此接口不使用 data/meta 包装。"
+      additionalProperties: false
+      required: ["status","mode"]
+      properties:
+        status:
+          type: "string"
+          const: "ok"
+        mode:
+          type: "string"
+          const: "demo"
+    DemoMeta:
+      type: "object"
+      description: "演示响应元信息。"
+      additionalProperties: false
+      required: ["mode"]
+      properties:
+        mode:
+          type: "string"
+          const: "demo"
+    PersistentMeta:
+      type: "object"
+      description: "用户与会话的数据库响应元信息；数据库未启用时返回错误，不返回此包装。"
+      additionalProperties: false
+      required: ["mode"]
+      properties:
+        mode:
+          type: "string"
+          const: "persistent"
+    ErrorResponse:
+      type: "object"
+      description: "统一业务及路由错误，不包含内部堆栈、数据库连接串、密码或会话令牌。"
+      additionalProperties: false
+      required: ["error"]
+      properties:
+        error:
+          type: "object"
+          description: "错误详情。"
+          additionalProperties: false
+          required: ["code","message"]
+          properties:
+            code:
+              type: "string"
+              description: >-
+                机器可读错误码，例如 invalid_json、invalid_input、not_found、invalid_credentials、auth_unavailable、rate_limited。
+            message:
+              type: "string"
+              description: "可向用户展示的中文说明。"
+    RegisterRequest:
+      type: "object"
+      description: "注册请求；邮箱先去首尾空白并转小写，再按语法和最多 254 个 UTF-8 字节校验；昵称先去首尾空白，再校验 1～20 个字符。"
+      additionalProperties: false
+      required: ["email","displayName","password"]
+      properties:
+        email:
+          type: "string"
+          minLength: 1
+          description: "注册邮箱。最多 254 字节的限制作用于规范化结果。"
+          x-normalization: "trim-and-lowercase"
+          x-normalized-max-utf8-bytes: 254
+        displayName:
+          type: "string"
+          minLength: 1
+          description: "昵称；去首尾空白后的长度为 1～20 个 Unicode 字符。"
+          x-normalization: "trim"
+          x-normalized-max-length: 20
+        password:
+          type: "string"
+          format: "password"
+          writeOnly: true
+          minLength: 15
+          maxLength: 128
+          description: >-
+            完整密码参与哈希，最多 512 个 UTF-8 字节。此 Schema 采用 .env.example 默认最短 15 字符；
+            修改 AUTH_PASSWORD_MIN_LENGTH 后需同步 minLength。
+          x-max-utf8-bytes: 512
+          x-config-key: "AUTH_PASSWORD_MIN_LENGTH"
+    LoginRequest:
+      type: "object"
+      description: "登录请求；不使用注册的当前最短密码限制，以免策略变化锁住已有账号。不存在邮箱与错误密码统一返回 401。"
+      additionalProperties: false
+      required: ["email","password"]
+      properties:
+        email:
+          type: "string"
+          minLength: 1
+          description: "邮箱，去首尾空白并转小写后校验。"
+        password:
+          type: "string"
+          format: "password"
+          writeOnly: true
+          minLength: 1
+          maxLength: 128
+          description: "密码；最多 512 个 UTF-8 字节，不截断。"
+          x-max-utf8-bytes: 512
+    UserView:
+      type: "object"
+      description: "可对外返回的用户信息，不包含密码哈希或会话令牌。"
+      additionalProperties: false
+      required: ["id","email","displayName","createdAt"]
+      properties:
+        id:
+          type: "string"
+          description: "用户唯一 ID。"
+        email:
+          type: "string"
+          format: "email"
+          description: "规范化后的邮箱。"
+        displayName:
+          type: "string"
+          minLength: 1
+          maxLength: 20
+          description: "昵称。"
+        createdAt:
+          type: "string"
+          format: "date-time"
+          description: "注册时间，RFC 3339 格式。"
+    LoginResult:
+      type: "object"
+      description: "登录结果；令牌通过 Set-Cookie 传递，不在 JSON 中返回。"
+      additionalProperties: false
+      required: ["user","expiresAt"]
+      properties:
+        user:
+          $ref: "#/components/schemas/UserView"
+        expiresAt:
+          type: "string"
+          format: "date-time"
+          description: "会话过期时间，由 AUTH_SESSION_TTL 决定。"
+    LogoutResult:
+      type: "object"
+      description: "退出结果；撤销当前会话，不影响其他设备。"
+      additionalProperties: false
+      required: ["loggedOut"]
+      properties:
+        loggedOut:
+          type: "boolean"
+          const: true
+    TaskPageResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/TaskPage"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    TaskResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/Task"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    DirectionsResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Direction"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    DirectionResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/Direction"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    ProfileResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/Profile"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    ProfileValidationResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/ProfileValidation"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    RecommendationsResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Recommendation"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    FeedbackResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/FeedbackResult"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    TaskPlanResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/TaskPlan"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    BootstrapResponse:
+      type: "object"
+      description: "成功的演示响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/Bootstrap"
+        meta:
+          $ref: "#/components/schemas/DemoMeta"
+    UserResponse:
+      type: "object"
+      description: "成功的数据库响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/UserView"
+        meta:
+          $ref: "#/components/schemas/PersistentMeta"
+    LoginResponse:
+      type: "object"
+      description: "成功的数据库响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/LoginResult"
+        meta:
+          $ref: "#/components/schemas/PersistentMeta"
+    LogoutResponse:
+      type: "object"
+      description: "成功的数据库响应。"
+      additionalProperties: false
+      required: ["data","meta"]
+      properties:
+        data:
+          $ref: "#/components/schemas/LogoutResult"
+        meta:
+          $ref: "#/components/schemas/PersistentMeta"
+  examples:
+    ProfileRequest:
+      summary: "默认演示画像"
+      value:
+        profile:
+          name: "探索者"
+          dailyMinutes: 45
+          goal: "project"
+          skills:
+            python:
+              level: 0.4
+              confidence: 0.25
+            web:
+              level: 0.3
+              confidence: 0.25
+            git:
+              level: 0.25
+              confidence: 0.25
+            algorithm:
+              level: 0.2
+              confidence: 0.25
+          interests:
+            backend: 0.8
+            frontend: 0.65
+            ai: 0.7
+            security: 0.35
+    ChatRequest:
+      summary: "方向导学消息（目前返回 501）"
+      value:
+        profile:
+          name: "探索者"
+          dailyMinutes: 45
+          goal: "project"
+          skills:
+            python:
+              level: 0.4
+              confidence: 0.25
+            web:
+              level: 0.3
+              confidence: 0.25
+            git:
+              level: 0.25
+              confidence: 0.25
+            algorithm:
+              level: 0.2
+              confidence: 0.25
+          interests:
+            backend: 0.8
+            frontend: 0.65
+            ai: 0.7
+            security: 0.35
+        message: "我想了解后端开发，应该从哪里开始？"
+    IssueSearchRequest:
+      summary: "开源搜索输入（目前返回 501）"
+      value:
+        profile:
+          name: "探索者"
+          dailyMinutes: 45
+          goal: "project"
+          skills:
+            python:
+              level: 0.4
+              confidence: 0.25
+            web:
+              level: 0.3
+              confidence: 0.25
+            git:
+              level: 0.25
+              confidence: 0.25
+            algorithm:
+              level: 0.2
+              confidence: 0.25
+          interests:
+            backend: 0.8
+            frontend: 0.65
+            ai: 0.7
+            security: 0.35
+        query: "Go good first issue"
+    Feedback:
+      summary: "开始一个示例项目"
+      value:
+        id: "event-start-001"
+        taskId: "api-project"
+        type: "start"
+    Register:
+      summary: "注册测试账号"
+      value:
+        email: "learner@example.com"
+        displayName: "学习者"
+        password: "correct horse battery staple"
+    Login:
+      summary: "登录测试账号"
+      value:
+        email: "learner@example.com"
+        password: "correct horse battery staple"

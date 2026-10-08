@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+/.pnpm-store/
+/.go-cache/
+/.go-mod-cache/
 /.pnp
 .pnp.*
 .yarn/*
@@ -32,6 +35,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!/backend/.env.example
 
 # vercel
 .vercel
@@ -39,3 +43,53 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+/backend/bin/
+/test-results/
+
+# Backend local build/test outputs (source, tests and migrations remain tracked)
+/backend/.go-cache/
+/backend/.go-mod-cache/
+/backend/coverage/
+/backend/test-results/
+/backend/tmp/
+/backend/logs/
+*.log
+*.test
+*.exe
+coverage.out
+*.prof
+
+# Local notes/plans/handoffs and reserved data (not runtime dependencies)
+/docs/
+/data/
+/notes/
+/plans/
+/logs/
+/artifacts/
+/reports/
+/.agents/
+/.codex/
+/.vscode/
+/.idea/
+/GOALS.md
+/PLAN.md
+/TASKS.md
+/TODO.md
+/STATUS.md
+/开发限制清单.md
+/backend/GOALS.md
+/backend/PLAN.md
+/backend/TASKS.md
+/backend/TODO.md
+/backend/STATUS.md
+
+# Local frontend/demo and whole-site deployment helpers
+# Actual frontend backup is ../frontend/, outside this Git repository.
+/frontend/
+/scripts/
+/Dockerfile
+/.dockerignore
+/compose.yaml
+/compose.yml
+/docker-compose.yaml
+/docker-compose.yml
