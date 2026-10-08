@@ -1,39 +1,43 @@
-# awesome-chances 协作指引
+# awesome-chances 项目主记录
 
-## 1. 项目目标与理解
+## 1. 项目目标
 
-面向校园学生和计算机自学初学者，建设 **AI 导学、成长规划与真实任务推荐平台**，主要通过桌面浏览器 Web 使用，暂不开发手机端。
+面向校园学生和计算机自学初学者，建设通过桌面浏览器使用的 AI 导学、成长规划与真实任务推荐平台。核心是“能力—兴趣”双维度匹配，统一闭环为 `用户画像 → 任务画像 → 推荐/学习路线 → 执行反馈 → 画像更新`。
 
-核心创新是“能力—兴趣”双维度匹配：既了解用户会什么、想学什么，也描述任务需要什么、能带来什么成长，再给出可解释且具有适度挑战的推荐。对话是交互入口，画像、任务匹配与持续成长是产品核心。
+规划包含导学 Agent、竞赛规划、项目导学和开源贡献匹配。规划不等于已实现能力，描述项目时应区分真实功能与演示数据。
 
-统一闭环：`用户画像 → 任务画像 → 匹配排序 → 推荐/学习路线 → 执行与反馈 → 画像更新 → 下一轮推荐`。四大功能复用该闭环，避免各自建立独立推荐逻辑。
+## 2. 技术栈与当前状态
 
-| 功能 | 预期行为 |
-| --- | --- |
-| 导学 Agent | 根据需求、兴趣和基础，解释计算机方向、岗位工作、技术栈与前置知识，提供路线并将有效信息作为画像证据。 |
-| 竞赛规划 | 覆盖算法、安全、数据科学、创新创业等赛事，匹配能力，从目标赛事逆向拆解技能差距、阶段任务、资源和时间节点。 |
-| 项目导学 | 面向技术方向或具体仓库，拆解需求、选型、模块、关键代码、测试部署；按用户能力生成阅读/实践路径，支持逐环节追问。 |
-| 开源贡献匹配 | 从 GitHub 检索 `good first issue` / `help wanted`，结合语义与仓库上下文评估难度、质量、兴趣适配性，并解释推荐理由。 |
+- 前端：Next.js、React、TypeScript、App Router、Tailwind CSS、ESLint、pnpm，版本以 package.json / pnpm-lock.yaml 为准。`src/` 和前端配置已恢复初始化框架；当前仓库没有此前七栏目演示页面或认证 BFF。
+- 后端：Go 1.25 + Gin 1.12 模块化单体，pgx 接入 PostgreSQL，Argon2id 密码哈希、Cookie 会话；版本以 backend/go.mod 为准。
+- 已有后端路由聚合、领域/HTTP/数据库模型、示例查询、规则推荐、计划预览、内存反馈、注册/登录/当前用户/退出，以及 PostgreSQL 连接和用户/会话迁移代码。
+- PostgreSQL 连接值待填写，真实数据库尚未联调；数据库关闭时认证返回 503。画像、任务和反馈尚未实现数据库持久化。
+- Agent、MCP、真实 LLM、GitHub 搜索与实时赛事尚未接入；插件入口返回明确的未接入状态。外部能力通过 Provider + Adapter 隔离。
 
-## 2. 当前实现状态
+## 3. 目录与接口
 
-当前项目为使用 pnpm 初始化的 Next.js 框架，采用 TypeScript、App Router、Tailwind CSS 和 ESLint，源码位于 `src/app`。
+- `src/app/`：前端页面；`src/app/api/` 是未来 Next.js BFF 的约定位置，目前未实现。BFF 仅负责转发、聚合和页面数据适配，核心业务在 backend。
+- `backend/cmd/api/`：API 入口；`backend/cmd/migrate/`：迁移入口。
+- `backend/internal/router/`：Gin 路由注册与聚合；`handler/`：请求/响应；`service/`：业务；`model/`：领域、HTTP、数据库记录及配置结构。
+- `backend/internal/recommendation/`：推荐规则；`provider/`：外部能力契约；`adapters/`：demo、内存与 PostgreSQL 实现；`config/`：环境配置；`security/`：密码与令牌辅助。
+- `backend/migrations/`：版本 SQL；`backend/internal/openapi/openapi.yaml`：OpenAPI 3.1 中文契约，修改接口时同步维护。
+- 路由组：1 竞赛、2 项目、3 导学、4 开源、5 画像与成长、6 任务、7 系统、8 认证。业务接口前缀 `/api/v1`，健康检查 `/healthz`；后端不托管前端页面。
+- 示例数据唯一来源为 `backend/internal/adapters/demo/`。调用链为 `router → handler → service → 推荐/Repository`，数据库记录不直接作为 HTTP 响应。
 
-上述四大功能是产品目标，尚未实现。描述项目能力时，应区分规划中的功能与已经落地的功能。
+## 4. 运行与记录维护
 
-## 3. 代码目录约定
+前端按原 README 使用 pnpm；后端独立运行方式见 `backend/README.md`。后端配置模板为 `backend/.env.example`，在 backend 目录运行时优先读取该目录的 `.env`，也兼容上层 `.env`；进程环境优先。真实凭据不提交。
 
-- 前端页面、布局与交互代码放在 `src/` 下，Next.js 页面入口位于 `src/app/`。
-- **BFF（Backend for Frontend）层交给 Next.js 实现**，面向前端的 BFF 接口使用 Route Handlers，放在 `src/app/api/` 下。
-- BFF 层负责请求转发、接口聚合和面向页面的数据适配，通过后端接口调用 `backend/` 服务。
-- **除 Next.js 承担的 BFF 层外，后端代码必须在项目根目录的 `backend/` 目录下实现**，包括后端服务接口、核心业务逻辑、Agent 编排和数据访问代码。BFF 层不得重复实现这些职责。
+本文件是项目的主记录，仅保留项目目标、实际架构和关键状态。结构性变化按影响范围同步本文件及对应模块 README；日常目标、工作日志、个人约束和接力流水账不写入本文件。后端专属工作指引位于仓库外的 `../AGENTS.md`，是本地协作辅助，不是克隆项目运行的必要文件。
 
-## 4. 文档维护要求
+此前演示前端备份位于仓库外 `../frontend/`，不参与主项目构建或提交。`docs/`、`data/` 当前为忽略的本地记录/规划；缓存、报告、私人环境配置和其他与后端功能无直接关系的新内容须加入忽略规则，不提交。必要的后端源码、测试、迁移、契约与无秘密配置模板正常维护。
 
-当发生项目结构性变更时，必须在同一次修改中同步更新 **AGENTS.md** 和 **README.md**。
+<!-- BEGIN:nextjs-agent-rules -->
 
-结构性变更包括目录结构、模块职责、技术栈、核心业务流程或开发部署方式的变化。
+## This is NOT the Next.js you know
 
-- AGENTS.md 应反映最新的项目理解、实现状态和协作约定。
-- README.md 应反映最新的项目介绍、目录说明、开发命令和部署方式。
-- 完成变更前，核对两份文档与实际代码是否一致。
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

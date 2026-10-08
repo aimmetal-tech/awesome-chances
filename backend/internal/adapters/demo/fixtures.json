@@ -1,0 +1,24 @@
+{
+  "profile": {
+    "name": "探索者", "dailyMinutes": 45, "goal": "project",
+    "skills": {"python":{"level":0.4,"confidence":0.25},"web":{"level":0.3,"confidence":0.25},"git":{"level":0.25,"confidence":0.25},"algorithm":{"level":0.2,"confidence":0.25}},
+    "interests": {"backend":0.8,"frontend":0.65,"ai":0.7,"security":0.35}
+  },
+  "directions": [
+    {"id":"backend","label":"后端开发","english":"BACKEND","description":"从一个接口开始，搭建应用背后的世界。","work":"设计接口、处理数据与业务逻辑，让应用稳定地响应用户请求。适合喜欢理解系统如何运转、拆解问题的你。","stack":["一门编程语言","HTTP","数据库","Git","接口测试"],"steps":["巩固语言与 Git 基础","理解 HTTP 与请求响应","实现小型 CRUD 接口","加入数据库与测试","部署并记录开发过程"]},
+    {"id":"frontend","label":"前端开发","english":"FRONTEND","description":"把创意变成看得见、用得上的交互。","work":"把设计与业务需求转化为网页，处理布局、交互、状态和接口请求。适合喜欢即时反馈、关心使用体验的你。","stack":["HTML / CSS","JavaScript","TypeScript","React","浏览器工具"],"steps":["学习 HTML 与 CSS","用 JavaScript 实现交互","完成一个静态页面","用 React 拆分组件","接入接口并发布页面"]},
+    {"id":"ai","label":"人工智能","english":"ARTIFICIAL INTELLIGENCE","description":"从数据中发现规律，让想法更智能。","work":"处理数据、验证模型效果，并将模型能力应用到真实问题中。适合愿意做实验、对数据和规律有好奇心的你。","stack":["Python","数学基础","数据处理","机器学习","模型评估"],"steps":["熟悉 Python 基础","补齐必要数学知识","读取并分析小型数据集","训练基础分类模型","比较结果并解释误差"]},
+    {"id":"security","label":"网络安全","english":"CYBER SECURITY","description":"理解系统的边界，学会守护每一次连接。","work":"分析系统风险、验证安全边界并改进防护。从网络和系统基础开始，在授权环境中学习与练习。","stack":["网络基础","Linux","Python","Web 安全","授权练习环境"],"steps":["了解网络与 Linux 基础","理解 Web 请求与身份认证","学习常见安全风险","在授权靶场中实践","整理风险分析与修复报告"]}
+  ],
+  "tasks": [
+    {"id":"api-project","type":"project","title":"搭建你的第一个校园活动 API","description":"从活动列表到报名接口，体验一次完整的后端开发过程。","category":"backend","tags":["Python","HTTP","入门项目"],"requiredSkills":{"python":0.4,"web":0.4,"git":0.25},"difficulty":0.45,"minutes":180,"quality":0.9,"outcomes":["理解请求与响应","练习接口设计","完成可展示的项目"],"steps":["写下活动列表与报名需求","设计接口和数据字段","实现接口并补充测试","编写运行说明"],"source":"demo"},
+    {"id":"personal-page","type":"project","title":"做一个有个性的个人主页","description":"把基础布局与交互，变成一个可以展示的小作品。","category":"frontend","tags":["HTML / CSS","页面交互"],"requiredSkills":{"web":0.3,"git":0.2},"difficulty":0.35,"minutes":120,"quality":0.85,"outcomes":["掌握基础布局","实践组件拆分"],"steps":["确定内容与页面布局","实现桌面页面","增加一个可用交互","检查不同屏幕宽度"],"source":"demo"},
+    {"id":"data-project","type":"project","title":"用 Python 探索一份学习数据","description":"清洗示例数据，画出趋势，并尝试解释你的发现。","category":"ai","tags":["Python","数据分析"],"requiredSkills":{"python":0.5,"algorithm":0.2},"difficulty":0.5,"minutes":150,"quality":0.9,"outcomes":["数据清洗","可视化表达","结果分析"],"steps":["准备公开练习数据","处理缺失值与重复值","绘制趋势图","记录三个发现"],"source":"demo"},
+    {"id":"git-practice","type":"resource","title":"用 Git 记录第一次代码改动","description":"在本地练习仓库走一遍分支、提交与合并流程。","category":"backend","tags":["Git","工程基础"],"requiredSkills":{"git":0.15},"difficulty":0.3,"minutes":35,"quality":0.95,"outcomes":["理解版本管理","掌握基础 Git 工作流"],"steps":["创建本地练习仓库","创建分支并修改文件","提交并查看历史","合并分支"],"source":"demo"},
+    {"id":"docs-issue","type":"issue","title":"为快速开始文档补充运行步骤","description":"模拟一次文档贡献，让下一位新手更顺利地开始。","category":"backend","tags":["文档贡献","good first issue"],"requiredSkills":{"git":0.3,"web":0.2},"difficulty":0.35,"minutes":50,"quality":0.9,"outcomes":["阅读项目文档","整理可复现步骤"],"steps":["阅读示例文档","找出缺失的环境说明","写下准确运行步骤","在本地复查改动"],"source":"demo"},
+    {"id":"ui-issue","type":"issue","title":"改善表单空状态与错误提示","description":"模拟一个前端体验问题，练习阅读组件与完善边界情况。","category":"frontend","tags":["React","help wanted"],"requiredSkills":{"web":0.55,"git":0.4},"difficulty":0.6,"minutes":100,"quality":0.8,"outcomes":["组件阅读","边界状态处理"],"steps":["复现空表单行为","定位组件状态","补充提示与校验","验证提交与清空流程"],"source":"demo"},
+    {"id":"algorithm-prep","type":"competition","title":"算法竞赛 · 基础备赛计划","description":"从数组、排序到复杂度，建立算法类赛事的入门知识地图。","category":"backend","tags":["算法","备赛示例"],"requiredSkills":{"algorithm":0.3,"python":0.3},"difficulty":0.4,"minutes":240,"quality":0.9,"outcomes":["基础算法练习","分析时间复杂度"],"steps":["数组与字符串练习","学习基础排序","理解时间复杂度","限时练习并复盘"],"source":"demo"},
+    {"id":"ai-prep","type":"competition","title":"数据科学竞赛 · 入门准备","description":"以小型分类任务为例，了解数据划分、基线与评估。","category":"ai","tags":["数据科学","备赛示例"],"requiredSkills":{"python":0.6,"algorithm":0.4},"difficulty":0.65,"minutes":300,"quality":0.85,"outcomes":["训练与验证划分","模型评估意识"],"steps":["补齐数据处理基础","理解训练与验证集","建立简单基线","分析评估指标"],"source":"demo"},
+    {"id":"security-practice","type":"resource","title":"画出网页请求的安全边界","description":"在本地示例中理解输入校验、身份认证与权限检查。","category":"security","tags":["Web 安全","基础练习"],"requiredSkills":{"web":0.35,"python":0.2},"difficulty":0.4,"minutes":60,"quality":0.9,"outcomes":["认识常见安全边界","区分认证与授权"],"steps":["画出请求的流向","列出可能的输入","标注认证与权限检查","整理防护清单"],"source":"demo"}
+  ]
+}
