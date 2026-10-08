@@ -37,3 +37,7 @@ BFF 层由 Next.js 实现，通过后端接口调用 `backend/` 服务；核心�
 导入别名 `@/*` 指向 `src/*`。默认模板使用 `next/font/google` 加载 Geist 字体，首次构建需要能访问 Google Fonts。
 
 参考 [Next.js 官方文档](https://nextjs.org/docs)和 [create-next-app 参数说明](https://nextjs.org/docs/app/api-reference/cli/create-next-app)。
+
+## 许可证
+
+本项目采用 [MIT 许可证](./LICENSE)。
